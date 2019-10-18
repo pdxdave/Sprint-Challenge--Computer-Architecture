@@ -18,6 +18,10 @@ MUL  = 0b10100010
 CALL = 0b01010000
 RET  = 0b00010001  
 ADD  = 0b10100000
+CMP  = 0b10100111
+JMP  = 0b01010100
+JEQ  = 0b01010101
+JNE  = 0b01010110
 
 class CPU:
     """Main CPU class."""
@@ -29,6 +33,7 @@ class CPU:
         self.pc = 0
         self.reg[7] = 255
         self.SP = 0x07
+        self.fl = [0] * 8
         # This is where the CPU actions will be run from
         self.cpuruntable = {
             LDI: self.LDI,
@@ -38,7 +43,11 @@ class CPU:
             MUL: self.MUL,
             ADD: self.ADD,
             CALL: self.CALL,
-            RET: self.RET
+            RET: self.RET,
+            CMP: self.CMP,
+            JMP: self.JMP,
+            JEQ: self.JEQ,
+            JNE: self.JNE
         }
 
     def ram_read(self, MAR):
@@ -85,6 +94,31 @@ class CPU:
             self.reg[reg_a] += self.reg[reg_b]
         elif op == 'MUL':
             self.reg[reg_a] *= self.reg[reg_b]
+        elif op == "CMP":
+            # this are where the flags are set: GLE. T = True
+            self.fl[0] = 0 
+            self.fl[1] = 0 
+            self.fl[2] = 0
+            if self.reg[reg_a] > self.reg[reg_b]: # if first val > than second, then G flag is T
+                self.fl[0] = 1
+            elif self.reg[reg_a] < self.reg[reg_b]: # if first val < than second, then L flag is T
+                self.fl[1] = 1
+            else: # if first val == second, then E flag is T
+                self.fl[2] = 1
+        elif op == "JEQ":
+            if self.fl[2] == 1:
+                # if E == T, jump over to the address 
+                self.JMP(reg_a, reg_b)
+            else:
+                # otherwise increase the program counter
+                self.pc += 2
+        elif op == "JNE":
+            if self.fl[2] == 0:
+                # if E == F, jump to given address
+                self.JMP(reg_a, reg_b)
+            else:
+                # otherwise increase program counter
+                self.pc += 2
         #elif op == "SUB": etc
         else:
             raise Exception("Unsupported ALU operation")
@@ -139,6 +173,15 @@ class CPU:
         ret_add = self.ram[self.reg[self.SP]]
         self.reg[self.SP] += 1
         self.pc = ret_add
+    def CMP(self, operand_a, operand_b):
+        self.alu("CMP", operand_a, operand_b)
+        self.pc += 3
+    def JMP(self, operand_a, operand_b):
+        self.pc = self.reg[operand_a]
+    def JEQ(self, operand_a, operand_b):
+        self.alu("JEQ", operand_a, operand_a)
+    def JNE(self, operand_a, operand_b):
+        self.alu("JNE", operand_a, operand_b)
     def run(self):
         
             """ New location of Run the CPU """
